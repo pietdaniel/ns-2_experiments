@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-import sys, math
+import sys, math, os
 import matplotlib.pyplot as plt
 from Queue import PriorityQueue
 
@@ -150,21 +150,17 @@ class packet:
 
 
 if __name__ == "__main__":
-    file_name = sys.argv[1]
-    f = open(file_name,'r')
 
-    s = simulation()
-    s.parse_file(f)
-    packets = s.get_tcp()
+    for log_file in os.listdir("./logs"):
+      f = open("./logs/" + log_file,'r')
 
-    #a = map(lambda x:x[0], packets)
-    #b = map(lambda x:x[1].upacket_id, packets)
-    #c = map(lambda x:x[1].get_abr_as_int(), packets)
+      s = simulation()
+      s.parse_file(f)
+      packets = s.get_tcp()
 
-    a,b = s.get_drop_rate(.1)
+      a,b = s.get_drop_rate(.1)
 
-    plt.plot(a,b, linewidth=0.5)
+      plt.plot(a,b, linewidth=0.5)
 
-    plt.savefig('foo.png')
-
+    plt.savefig('./graphs/foo.png')
 

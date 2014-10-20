@@ -2,12 +2,14 @@
 
 proc experiment_one {agent cbr_rate} {
 
+  set local 1
+
   # set constants
   set ns [new Simulator]
   set CBR_RATE $cbr_rate
 
   if {$agent == "tahoe"} {
-    set tcp [new Agent/TCP/tahoe]
+    set tcp [new Agent/TCP]
   } elseif {$agent == "reno"} {
     set tcp [new Agent/TCP/Reno]
   } elseif {$agent == "newreno"} {
@@ -17,11 +19,13 @@ proc experiment_one {agent cbr_rate} {
   }
 
   # io
+  global tf
   set tf [open ./logs/exp1-$CBR_RATE-$agent.tr w]
   $ns trace-all $tf
 
-  proc finish {tff} {
-    close $tff
+  proc finish {} {
+    global tf
+    close $tf
     exit 0
   }
 
@@ -82,15 +86,10 @@ proc experiment_one {agent cbr_rate} {
   $ns at 9.9 "$cbr stop"
   
   # Call the finish procedure after 5 seconds of simulation time
-  $ns at 10.0 "finish $tf"
+  $ns at 10.0 "finish"
   
   #Run the simulation
   $ns run
 }
 
-experiment_one "reno" "1mb"
-experiment_one "reno" "3mb"
-experiment_one "reno" "5mb"
-experiment_one "reno" "7mb"
-experiment_one "reno" "9mb"
-experiment_one "reno" "11mb"
+experiment_one [lindex $argv 0] [lindex $argv 1]
