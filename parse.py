@@ -33,19 +33,115 @@ class simulation:
         """
         return filter(lambda x: x[1].name == 'tcp', self.packets)
 
-    def get_drop_rate(self, delta):
+    def get_total_droprate(self, src_adr=None):
+        """
+         Packet loss / packets sent
+        """
+        start_time = None
+        end_time = None
+        total_dropped_packets = 0.0
+        total_packets = 0.0
+
+        for packet in self.packets:
+            if src_adr is not None and packet[1].src_adr == src_adr:
+
+                if start_time is None:
+                    start_time = packet[1].time
+                last_packet = packet
+                
+                total_packets += 1
+
+                if packet[1].abr == 'd':
+                    total_dropped_packets += 1
+
+
+        end_time = last_packet[1].time
+        total_time = end_time - start_time
+
+        return float(total_dropped_packets / total_packets)
+
+    def get_total_throughput(self, dest_adr=None):
+        """
+         Returns bytes/s
+        """
+        start_time = None
+        end_time = None
+
+        total_recieved = 0.0
+        for packet in self.packets:
+            if dest_adr is not None and packet[1].dest_adr == dest_adr and packet[1].dest_node == dest_adr:
+
+                if start_time is None:
+                    start_time = packet[1].time
+                last_packet = packet
+
+                total_recieved += packet[1].size
+
+        end_time = last_packet[1].time
+        total_time = end_time - start_time
+
+        print total_recieved
+
+        return float(total_recieved / total_time)
+
+
+    def get_total_latency(self, src_adr=None):
+        """
+          match times of tcp packets from 0 -> 1 with sqnc_num n
+          with ack packets from 1 -> 0 with sqnc_num n
+
+          returns average of all latencies
+        """
+        pairs = []
+        p1 = None
+        p2 = None
+        sqnc_num = None
+        for packet in self.packets:
+            if packet[1].name == "tcp" or packet[1].name == "ack":
+
+                if p1 is None and packet[1].src_node == 0:
+                    p1 = packet
+                    sqnc_num = p1[1].sqnc_num
+
+                if p1 is not None and packet[1].dest_node == 0 and packet[1].sqnc_num == sqnc_num:
+                    p2 = packet
+
+            if p1 is not None and p2 is not None:
+                pair = (p1,p2)
+                pairs.append(pair)
+                p1 = None
+                p2 = None
+                sqnc_num = None
+
+        
+        latencies = []
+        for pair in pairs:
+            delta = pair[1][0] - pair[0][0]
+            #print delta
+            latencies.append(delta)
+
+        return sum(latencies) / len(latencies)
+
+    def get_throuput(self, delta, src_adr=None):
+        pass
+
+    def get_latency(self):
+        pass
+
+    def get_drop_rate(self, delta, src_adr=None):
         """
             Returns the drop rate over all packet types
         """
         # count number of drop packets in each time / delta
         bucket={}
         for packet in self.packets:
-            t = int(math.floor(packet[1].time / delta))
-            if packet[1].abr == 'd':
-                if t in bucket:
-                    bucket[t] = bucket[t] + 1
-                else:
-                    bucket[t] = 1
+            if src_adr is not None and packet[1].src_adr == src_adr:
+                if packet[1].abr == 'd':
+                    t = int(math.floor(packet[1].time / delta))
+                    if t in bucket:
+                        bucket[t] = bucket[t] + 1
+                    else:
+                        bucket[t] = 1
 
         # turn dict into array of (bucket,bucket_ctr)
         output = []
@@ -150,17 +246,34 @@ class packet:
 
 
 if __name__ == "__main__":
+    args = sys.argv
+    if args[1] == '-t':
+        log_file = open(args[2], 'r')
+        s = simulation()
+        s.parse_file(log_file)
 
-    for log_file in os.listdir("./logs"):
-      f = open("./logs/" + log_file,'r')
+        dr = s.get_total_droprate(src_adr=0)
+        la = s.get_total_latency(src_adr=0)
+        tp = s.get_total_throughput(dest_adr=0)
 
-      s = simulation()
-      s.parse_file(f)
-      packets = s.get_tcp()
+        print "dropped per second"
+        print dr
+        print "latency seconds"
+        print la
+        print "throughput b/s"
+        print tp
 
-      a,b = s.get_drop_rate(.1)
-
-      plt.plot(a,b, linewidth=0.5)
-
-    plt.savefig('./graphs/foo.png')
+    else:
+        for log_file in os.listdir("./logs"):
+          f = open("./logs/" + log_file,'r')
+    
+          s = simulation()
+          s.parse_file(f)
+          packets = s.get_tcp()
+    
+          a,b = s.get_drop_rate(.1)
+    
+          plt.plot(a,b, linewidth=0.5)
+    
+        plt.savefig('./graphs/foo.png')
 
