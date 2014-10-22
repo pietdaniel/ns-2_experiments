@@ -406,15 +406,16 @@ def graph_exp3(folder):
 
     data = {}
     for filename in os.listdir(folder):
-        log_file = open(folder + "/" + filename, 'r')
-        filename = filename.replace(".tr","")
-        q = filename.split("-")
-        queue = q[1]
-        agent_name = q[0]
-        s = simulation()
-        print "About to parse file " + folder + "/" + filename
-        s.parse_file(log_file)
-        data[queue] = s
+        if ".tr" in filename:
+            log_file = open(folder + "/" + filename, 'r')
+            filename = filename.replace(".tr","")
+            q = filename.split("-")
+            queue = q[1]
+            agent_name = q[0]
+            s = simulation()
+            print "About to parse file " + folder + "/" + filename
+            s.parse_file(log_file)
+            data[queue] = s
 
     t2 = time()
 
@@ -439,8 +440,8 @@ def graph_exp3(folder):
         lat = s.get_total_latency(src_adr=0)
         tpt = s.get_total_throughput(dest_adr=3)
 
-        dr = s.get_droprate(1.0, src_adr=0)
-        la = s.get_latency(0.1, src_adr=0)
+        dr = s.get_droprate(0.2, src_adr=0)
+        la = s.get_latency(0.2, src_adr=0)
         tp = s.get_throughput(0.1, dest_adr=3)
 
         dba, dbb = wobba_fobba(dr)
@@ -451,7 +452,8 @@ def graph_exp3(folder):
         ax2.plot(lab, laa, linewidth=1.0, label=queue + " Total:\n" + str(round(lat,4)))
         ax3.plot(tpb, tpa, linewidth=1.0, label=queue + " Total:\n" + str(round(tpt,2)))
 
-
+        ax1.get_yaxis().set_view_interval(0, 5)
+        
     for ax in [ax1, ax2, ax3]:
         ax.legend(loc="upper left", fontsize='xx-small', bbox_to_anchor=(1.005, 1))
 
