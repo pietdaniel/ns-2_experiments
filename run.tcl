@@ -20,7 +20,7 @@ proc experiment_one {agent cbr_rate} {
 
   # io
   global tf
-  set tf [open ./logs/exp1-$CBR_RATE-$agent.tr w]
+  set tf [open ./logs/exp1/$agent/exp1-$CBR_RATE-$agent.tr w]
   $ns trace-all $tf
 
   proc finish {} {

@@ -8,4 +8,7 @@ time deltas
  dr, tp, lat
 
 
+probabilities bro
+ do em
 
+variance and shit
