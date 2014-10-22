@@ -1,6 +1,10 @@
 # Experiment 1
 
 proc experiment_one {agent cbr_rate} {
+  puts -nonewline "Running experiment one against parameters "
+  puts -nonewline $agent
+  puts -nonewline  " "
+  puts $cbr_rate
 
   set local 1
 
