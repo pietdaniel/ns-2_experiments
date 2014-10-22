@@ -40,3 +40,44 @@ fewest drops
  tcp 0 -> 3 , first arg
  tcp 4 -> 5 , second arg
 
+
+
+ ------------------
+
+
+- refactor droprate
+- vary start times, variances
+- show CBR start and end time
+- dropped packets on CBR?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
