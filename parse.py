@@ -213,6 +213,7 @@ class simulation:
         drop_ctr = 0
         for packet in self.packets:
             if src_adr is not None and packet[1].src_adr == src_adr:
+
                 if packet[1].abr == 'd':
                     if start_time is None:
                         start_time = packet[1].time
@@ -337,9 +338,11 @@ def make_der_grapher(folder):
 
     for filename in os.listdir(folder):
         log_file = open(folder + "/" + filename, 'r')
+        filename = filename.replace(".tr","")
         q = filename.split("-")
-        cbr = q[1]
-        agent_name = q[2].replace(".tr","")
+
+        cbr = q[1] + "-" + q[2]
+        agent_name = q[1]
 
         s = simulation()
         print "About to parse file " + folder + "/" + filename
@@ -379,6 +382,8 @@ def make_der_grapher(folder):
         laa, lab = wobba_fobba(la)
         tpa, tpb = wobba_fobba(tp)
 
+        print tpa
+
         ax1.plot(dbb, dba, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(drt,4)))
         ax2.plot(lab, laa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(lat,4)))
         ax3.plot(tpb, tpa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(tpt,2)))
@@ -390,13 +395,13 @@ def make_der_grapher(folder):
     fig = plt.gcf()
     fig.suptitle(agent_name)
     fig.set_size_inches(fig.get_size_inches()[0] + 4, fig.get_size_inches()[1] + 3)
-    fig.set_dpi(90)
+    fig.set_dpi(72)
 
     t3 = time()
 
     print "Saving figure " + str(t3 - t2) + " seconds"
 
-    fig.savefig("./graphs/exp1-"+agent_name+".png")
+    fig.savefig("./graphs/exp_3/"+agent_name+".png")
 
     t4 = time()
 
@@ -405,10 +410,8 @@ def make_der_grapher(folder):
 if __name__ == "__main__":
     args = sys.argv
     if args[1] == '-t':
-        make_der_grapher("./logs/exp1/newreno/")
-        make_der_grapher("./logs/exp1/reno/")
-        make_der_grapher("./logs/exp1/tahoe/")
-        make_der_grapher("./logs/exp1/vegas/")
+        make_der_grapher("./logs/exp_3/reno")
+        make_der_grapher("./logs/exp_3/sack")
     elif args[1] == '-r':
         make_der_grapher(args[2])
 
