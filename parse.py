@@ -316,12 +316,12 @@ class packet:
         -: Dequeue 4
       """
       return {
-              'r':0,
-              'd':1,
-              'e':2,
-              '+':3,
-              '-':4,
-             }[self.abr]
+          'r':0,
+          'd':1,
+          'e':2,
+          '+':3,
+          '-':4,
+       }[self.abr]
 
   def __str__(self):
     return self.raw
@@ -329,8 +329,10 @@ class packet:
 
 def graph_exp1(folder):
     t1 = time()
-
+    agent_name = None
+    # grab each of the files,
     data = {}
+
     for filename in os.listdir(folder):
         log_file = open(folder + "/" + filename, 'r')
         q = filename.split("-")
@@ -342,58 +344,61 @@ def graph_exp1(folder):
         data[cbr] = s
 
     t2 = time()
-
     print "Parsing done composing graphs " + str(t2 - t1) + " seconds"
 
+    # set up the subplots
     f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False)
     axes = [ax1, ax2, ax3]
     ax1.set_title("Droprate (lost / sent)")
     ax2.set_title("Latency (seconds)")
     ax3.set_title("Throughput (b/s)")
     
+    # displace the boxes so the legends arent cut
     for ax in axes:
         box = ax.get_position()
         ax.set_position([box.x0 - box.width * 0.05 ,box.y0, box.width * 0.9, box.height]) 
 
-    for key in data.keys():
-        print "Constructing graph for " + key
-        s = data[key]
-        cbr = key
+    
+    for cbr in data.keys():
+        print "Constructing graph for " + cbr
+        s = data[cbr]
 
+        # get total drop rate, total latency, total through put
         drt = s.get_total_droprate(src_adr=0)
         lat = s.get_total_latency(src_adr=0)
         tpt = s.get_total_throughput(dest_adr=3)
 
+        # get the array of value, time for the given simulation
         dr = s.get_droprate(1.0, src_adr=0)
         la = s.get_latency(0.1, src_adr=0)
         tp = s.get_throughput(0.1, dest_adr=3)
 
+        # turn the array of tuples into a tuple of arrays
         dba, dbb = wobba_fobba(dr)
         laa, lab = wobba_fobba(la)
         tpa, tpb = wobba_fobba(tp)
 
+        # plot the data against time
         ax1.plot(dbb, dba, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(drt,4)))
         ax2.plot(lab, laa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(lat,4)))
         ax3.plot(tpb, tpa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(tpt,2)))
 
-
+    # add the legend
     for ax in [ax1, ax2, ax3]:
         ax.legend(loc="upper left", fontsize='xx-small', bbox_to_anchor=(1.005, 1))
 
+    # create the figure, title, resize, set dpi
     fig = plt.gcf()
     fig.suptitle(agent_name)
     fig.set_size_inches(fig.get_size_inches()[0] + 4, fig.get_size_inches()[1] + 3)
     fig.set_dpi(90)
 
-    t3 = time()
+    # save
+    save_file = "./graphs/exp1-"+agent_name+".png"
+    print "Saving figure to " + save_file
+    fig.savefig(save_file)
 
-    print "Saving figure " + str(t3 - t2) + " seconds"
-
-    fig.savefig("./graphs/exp1-"+agent_name+".png")
-
-    t4 = time()
-
-    print "Done " + str(t4 - t1) + " elapsed seconds"
+    print "Done " + str(time() - t1) + " elapsed seconds"
 
 
 ########################################################################
@@ -411,31 +416,46 @@ def wobba_fobba(output):
     # array[(x,y)] => (array[x],array[y])
     a = map(lambda x:x[0], output)
     b = map(lambda x:x[1], output)
-
     return (a,b)
 
+def do_single_exp1(arg):
+    if arg == "reno":
+      graph_exp1("./logs/exp1/reno")
+    elif arg == "newreno":
+      graph_exp1("./logs/exp1/newreno")
+    elif arg == "vegas":
+      graph_exp1("./logs/exp1/vegas")
+    elif arg == "tahoe":
+      graph_exp1("./logs/exp1/tahoe")
 
-def do_single(arg):
+def do_exp1():
+    run_all_exp1()
+    graph_exp1("./logs/exp1/reno")
+    graph_exp1("./logs/exp1/newreno")
+    graph_exp1("./logs/exp1/vegas")
+    graph_exp1("./logs/exp1/tahoe")
+
+def do_single_exp2(arg):
     if arg == "renoreno":
-        parse_exp2("./logs/exp2/renoreno", 'reno','reno')
+        graph_exp2("./logs/exp2/renoreno", 'reno','reno')
     elif arg == "newrenoreno":
-        parse_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
+        graph_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
     elif arg == "vegasvegas":
-        parse_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
+        graph_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
     elif arg == "newrenovegas":
-        parse_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
+        graph_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
     else:
         print "error not valid pairwise combo"
 
 def do_exp2():
     run_all_exp2()
-    parse_exp2("./logs/exp2/renoreno", 'reno','reno')
-    parse_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
-    parse_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
-    parse_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
+    graph_exp2("./logs/exp2/renoreno", 'reno','reno')
+    graph_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
+    graph_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
+    graph_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
 
 
-def parse_exp2(folder, agent1, agent2):
+def graph_exp2(folder, agent1, agent2):
     t1 = time()
     # parse simulation by cbr refactor this and similar functionality in exp1 graph
     data={}
@@ -549,7 +569,6 @@ def parse_exp2(folder, agent1, agent2):
     fig.savefig("./graphs/exp2-"+ agent1 + "-" + agent2 +".png")
 
     t4 = time()
-
     print "Done " + str(t4 - t1) + " elapsed seconds"
 
 
@@ -567,21 +586,32 @@ def run_all_exp2():
 def run_exp2_tcl(agent1, agent2, cbr):
     subprocess.call(["ns",'exp2.tcl', agent1, agent2, cbr])
 
+def run_all_exp1():
+    cbrs = ['1mb', '2mb', '3mb', '4mb', '5mb', '6mb', '7mb', '8mb', '9mb']
+    agents = ['reno', 'newreno', 'tahoe', 'vegas']
+    for cbr in cbrs:
+      for agent in agents:
+        run_exp1_tcl(agent, cbr)
+
+def run_exp1_tcl(agent1, cbr):
+    subprocess.call(["ns",'exp1.tcl', agent1, cbr])
 
 if __name__ == "__main__":
     args = sys.argv
 
     if args[1] == "-exp2":
         if len(args) >= 3:
-            do_single(args[2])
+            do_single_exp2(args[2])
         else:
             do_exp2()
 
     elif args[1] == '-exp1':
-        graph_exp1("./logs/exp1/newreno/")
-        graph_exp1("./logs/exp1/reno/")
-        graph_exp1("./logs/exp1/tahoe/")
-        graph_exp1("./logs/exp1/vegas/")
+        if len(args) >= 3:
+            do_single_exp1(args[2])
+        else:
+            do_exp1()
+
+        
 
 
 
