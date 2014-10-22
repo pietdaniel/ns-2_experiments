@@ -1,9 +1,9 @@
+
  4        5
   \      / 
    1----2
   /      \
  0        3
-
  CBR 1 -> 2
  TCP 0 -> 3
 
@@ -23,3 +23,20 @@ which get higher average throughput
 lowest average latency
 fewest drops
 'best' tcp variant or not
+
+
+
+
+--------------------
+
+ 4        5
+  \      / 
+   1----2
+  /      \
+ 0        3
+
+
+ cbr 1 -> 2
+ tcp 0 -> 3 , first arg
+ tcp 4 -> 5 , second arg
+

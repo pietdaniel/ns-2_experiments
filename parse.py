@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-import sys, math, os, pickle, hashlib
+import sys, math, os, pickle, hashlib, subprocess
 import matplotlib.pyplot as plt
 from Queue import PriorityQueue
 from time import time
@@ -12,6 +12,17 @@ from time import time
  Surmount this code in order to gain the ability
  to graph parsed ns-2 trace files with python's
  very own matplotlib.
+"""
+
+"""
+ features to implement
+   run tcl script from parse args
+   change tcl script to vary init times
+
+   parse run2.tcl files
+
+   graph bi-directional tcp traffic with annotations
+
 """
 
 class simulation:
@@ -48,6 +59,7 @@ class simulation:
         """
         start_time = None
         end_time = None
+        last_packet = None
         total_dropped_packets = 0.0
         total_packets = 0.0
 
@@ -63,6 +75,9 @@ class simulation:
                 if packet[1].abr == 'd':
                     total_dropped_packets += 1
 
+
+        if last_packet is None:
+            return 0.0
 
         end_time = last_packet[1].time
         total_time = end_time - start_time
@@ -225,25 +240,6 @@ class simulation:
 
         return output
 
-def wobba_fobba(output):
-    """
-      wobba fobba:
-        sort an array of pairs by the second value
-
-        then return a pair of arrays where a[0] is composed
-        of pair[0] and a[1] is pair[1]
-    """
-
-    # sort array
-    output.sort(lambda x,y: int(1000 * (x[1] - y[1])))
-
-    # transformation for matplotlib
-    # array[(x,y)] => (array[x],array[y])
-    a = map(lambda x:x[0], output)
-    b = map(lambda x:x[1], output)
-
-    return (a,b)
-
 class packet:
   """
     A class used to represent ns-2 packets
@@ -331,21 +327,18 @@ class packet:
     return self.raw
 
 
-def make_der_grapher(folder):
-    data = {}
+def graph_exp1(folder):
     t1 = time()
 
+    data = {}
     for filename in os.listdir(folder):
         log_file = open(folder + "/" + filename, 'r')
         q = filename.split("-")
         cbr = q[1]
         agent_name = q[2].replace(".tr","")
-
         s = simulation()
         print "About to parse file " + folder + "/" + filename
-        
         s.parse_file(log_file)
-
         data[cbr] = s
 
     t2 = time()
@@ -402,27 +395,193 @@ def make_der_grapher(folder):
 
     print "Done " + str(t4 - t1) + " elapsed seconds"
 
+
+########################################################################
+
+def wobba_fobba(output):
+    """
+      wobba fobba:
+        sort an array of pairs by the second value
+        then return a pair of arrays where a[0] is composed
+        of pair[0] and a[1] is pair[1]
+    """
+    # sort array
+    output.sort(lambda x,y: int(1000 * (x[1] - y[1])))
+    # transformation for matplotlib
+    # array[(x,y)] => (array[x],array[y])
+    a = map(lambda x:x[0], output)
+    b = map(lambda x:x[1], output)
+
+    return (a,b)
+
+
+def do_single(arg):
+    if arg == "renoreno":
+        parse_exp2("./logs/exp2/renoreno", 'reno','reno')
+    elif arg == "newrenoreno":
+        parse_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
+    elif arg == "vegasvegas":
+        parse_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
+    elif arg == "newrenovegas":
+        parse_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
+    else:
+        print "error not valid pairwise combo"
+
+def do_exp2():
+    run_all_exp2()
+    parse_exp2("./logs/exp2/renoreno", 'reno','reno')
+    parse_exp2("./logs/exp2/newrenoreno", 'newreno','reno')
+    parse_exp2("./logs/exp2/vegasvegas", 'vegas','vegas')
+    parse_exp2("./logs/exp2/newrenovegas", 'newreno','vegas')
+
+
+def parse_exp2(folder, agent1, agent2):
+    t1 = time()
+    # parse simulation by cbr refactor this and similar functionality in exp1 graph
+    data={}
+    for filename in os.listdir(folder):
+        log_file = open(folder + "/" + filename, 'r')
+        q = filename.split("-")
+        cbr = q[1]
+        agent_names = q[2].replace(".tr","")
+        s = simulation()
+        print "About to parse file " + folder + "/" + filename
+        s.parse_file(log_file)
+        data[cbr] = s
+
+    # create the figure with 3 subplots, sharing time axis
+    f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False)
+    axes = [ax1, ax2, ax3]
+    ax1.set_title("Droprate (lost / sent)")
+    ax2.set_title("Latency (seconds)")
+    ax3.set_title("Throughput (b/s)")
+
+    for ax in axes:
+        box = ax.get_position()
+        ax.set_position([box.x0 - box.width * 0.05 ,box.y0, box.width * 0.9, box.height]) 
+
+    # for each cbr plot the two tcp agents
+    #  agents are defined by src_adr 
+    #  where the network topology is defined as follows
+    #  4        5
+    #   \      / 
+    #    1----2
+    #   /      \
+    #  0        3
+    #  cbr 1 -> 2
+    #  tcp 0 -> 3 , first arg
+    #  tcp 4 -> 5 , second arg
+
+    t2 = time()
+
+    color_ctr = 0.17
+    for cbr in data.keys():
+        s = data[cbr]
+
+        # get the first tcp agents droprate and throughput
+        drt0 = s.get_total_droprate(src_adr=0)
+        lat0 = s.get_total_latency(src_adr=0)
+        tpt0 = s.get_total_throughput(dest_adr=3)
+
+        dr0 = s.get_droprate(0.5, src_adr=0)
+        la0 = s.get_latency(0.2, src_adr=0)
+        tp0 = s.get_throughput(0.1, dest_adr=3)
+
+        # get the second tcp agents droprate and throughput
+        drt4 = s.get_total_droprate(src_adr=4)
+        lat4 = s.get_total_latency(src_adr=4)
+        tpt4 = s.get_total_throughput(dest_adr=5)
+
+        dr4 = s.get_droprate(0.5, src_adr=4)
+        la4 = s.get_latency(0.2, src_adr=4)
+        tp4 = s.get_throughput(0.1, dest_adr=5)
+
+        # do the wobba fobba against both data sets
+        dba0, dbb0 = wobba_fobba(dr0)
+        laa0, lab0 = wobba_fobba(la0)
+        tpa0, tpb0 = wobba_fobba(tp0)
+
+        dba4, dbb4 = wobba_fobba(dr4)
+        laa4, lab4 = wobba_fobba(la4)
+        tpa4, tpb4 = wobba_fobba(tp4)
+
+        # plot both data sets against the same graph
+        color1 = (1-color_ctr, color_ctr/4.0, 1-color_ctr)
+        color2 = (1-color_ctr, color_ctr, color_ctr)
+
+        label1 = "1 " + agent1 + " " + cbr + " CBR Total:" 
+        label2 = "2 " + agent2 + " " + cbr + " CBR Total:" 
+
+        ax1.plot(dbb0, dba0, linewidth=0.80, color=color1,\
+            label=label1 + str(round(drt0,4)))
+
+        ax2.plot(lab0, laa0, linewidth=0.80, color=color1,\
+            label=label1 + str(round(lat0,4)))
+
+        ax3.plot(tpb0, tpa0, linewidth=0.80, color=color1,\
+            label=label1 + str(round(tpt0,2)))
+
+
+        ax1.plot(dbb4, dba4, linewidth=0.90, color=color2,\
+            label=label2 + str(round(drt0,4)))
+
+        ax2.plot(lab4, laa4, linewidth=0.90, color=color2,\
+            label=label2 + str(round(lat0,4)))
+
+        ax3.plot(tpb4, tpa4, linewidth=0.90, color=color2,\
+            label=label2 + str(round(tpt0,2)))
+
+        color_ctr += 0.17
+
+
+    for ax in [ax1, ax2, ax3]:
+        ax.legend(loc="upper left", fontsize='xx-small', bbox_to_anchor=(1.005, 1))
+
+    fig = plt.gcf()
+    fig.suptitle(agent1 + "vs" + agent2)
+    fig.set_size_inches(fig.get_size_inches()[0] + 4, fig.get_size_inches()[1] + 3)
+    fig.set_dpi(90)
+
+    t3 = time()
+
+    print "Saving figure " + str(t3 - t2) + " seconds"
+
+    fig.savefig("./graphs/exp2-"+ agent1 + "-" + agent2 +".png")
+
+    t4 = time()
+
+    print "Done " + str(t4 - t1) + " elapsed seconds"
+
+
+
+def run_all_exp2():
+    cbrs = ['1mb','3mb','5mb','7mb','8mb']
+    pairs = [('reno','reno') \
+            ,('newreno','reno')\
+            ,('vegas','vegas')\
+            ,('newreno','vegas')]
+    for cbr in cbrs:
+        for pair in pairs:
+            run_exp2_tcl(pair[0],pair[1],cbr)
+
+def run_exp2_tcl(agent1, agent2, cbr):
+    subprocess.call(["ns",'exp2.tcl', agent1, agent2, cbr])
+
+
 if __name__ == "__main__":
     args = sys.argv
-    if args[1] == '-t':
-        make_der_grapher("./logs/exp1/newreno/")
-        make_der_grapher("./logs/exp1/reno/")
-        make_der_grapher("./logs/exp1/tahoe/")
-        make_der_grapher("./logs/exp1/vegas/")
-    elif args[1] == '-r':
-        make_der_grapher(args[2])
 
-    else:
-        for log_file in os.listdir("./logs"):
-          f = open("./logs/" + log_file,'r')
-    
-          s = simulation()
-          s.parse_file(f)
-          packets = s.get_tcp()
-    
-          a,b = s.get_droprate(.1)
-    
-          plt.plot(a,b, linewidth=0.5)
-    
-        plt.savefig('./graphs/foo.png')
+    if args[1] == "-exp2":
+        if len(args) >= 3:
+            do_single(args[2])
+        else:
+            do_exp2()
+
+    elif args[1] == '-exp1':
+        graph_exp1("./logs/exp1/newreno/")
+        graph_exp1("./logs/exp1/reno/")
+        graph_exp1("./logs/exp1/tahoe/")
+        graph_exp1("./logs/exp1/vegas/")
+
+
 
