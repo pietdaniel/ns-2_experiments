@@ -401,6 +401,76 @@ def graph_exp1(folder):
     print "Done " + str(time() - t1) + " elapsed seconds"
 
 
+def graph_exp3(folder):
+    t1 = time()
+
+    data = {}
+    for filename in os.listdir(folder):
+        log_file = open(folder + "/" + filename, 'r')
+        filename = filename.replace(".tr","")
+        q = filename.split("-")
+        queue = q[1]
+        agent_name = q[0]
+        s = simulation()
+        print "About to parse file " + folder + "/" + filename
+        s.parse_file(log_file)
+        data[queue] = s
+
+    t2 = time()
+
+    print "Parsing done composing graphs " + str(t2 - t1) + " seconds"
+
+    f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False)
+    axes = [ax1, ax2, ax3]
+    ax1.set_title("Droprate (lost / sent)")
+    ax2.set_title("Latency (seconds)")
+    ax3.set_title("Throughput (b/s)")
+    
+    for ax in axes:
+        box = ax.get_position()
+        ax.set_position([box.x0 - box.width * 0.05 ,box.y0, box.width * 0.9, box.height]) 
+
+    for key in data.keys():
+        print "Constructing graph for " + key
+        s = data[key]
+        queue = key
+
+        drt = s.get_total_droprate(src_adr=0)
+        lat = s.get_total_latency(src_adr=0)
+        tpt = s.get_total_throughput(dest_adr=3)
+
+        dr = s.get_droprate(1.0, src_adr=0)
+        la = s.get_latency(0.1, src_adr=0)
+        tp = s.get_throughput(0.1, dest_adr=3)
+
+        dba, dbb = wobba_fobba(dr)
+        laa, lab = wobba_fobba(la)
+        tpa, tpb = wobba_fobba(tp)
+
+        ax1.plot(dbb, dba, linewidth=1.0, label=queue + " Total:\n" + str(round(drt,4)))
+        ax2.plot(lab, laa, linewidth=1.0, label=queue + " Total:\n" + str(round(lat,4)))
+        ax3.plot(tpb, tpa, linewidth=1.0, label=queue + " Total:\n" + str(round(tpt,2)))
+
+
+    for ax in [ax1, ax2, ax3]:
+        ax.legend(loc="upper left", fontsize='xx-small', bbox_to_anchor=(1.005, 1))
+
+    fig = plt.gcf()
+    fig.suptitle(agent_name)
+    fig.set_size_inches(fig.get_size_inches()[0] + 4, fig.get_size_inches()[1] + 3)
+    fig.set_dpi(90)
+
+    t3 = time()
+
+    print "Saving figure " + str(t3 - t2) + " seconds"
+
+    fig.savefig("./graphs/exp3/"+agent_name+".png")
+
+    t4 = time()
+
+    print "Done " + str(t4 - t1) + " elapsed seconds"
+
+
 ########################################################################
 
 def wobba_fobba(output):
@@ -599,6 +669,10 @@ def run_exp1_tcl(agent1, cbr):
 if __name__ == "__main__":
     args = sys.argv
 
+    if args[1] == "-exp3":
+        graph_exp3("./logs/exp3/reno")
+        graph_exp3("./logs/exp3/sack")
+
     if args[1] == "-exp2":
         if len(args) >= 3:
             do_single_exp2(args[2])
@@ -610,8 +684,3 @@ if __name__ == "__main__":
             do_single_exp1(args[2])
         else:
             do_exp1()
-
-        
-
-
-
