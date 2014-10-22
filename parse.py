@@ -1,7 +1,18 @@
 #!/usr/bin/python2
-import sys, math, os
+import sys, math, os, pickle, hashlib
 import matplotlib.pyplot as plt
 from Queue import PriorityQueue
+from time import time
+
+"""
+ woah, look at this pile of dirty python code
+ written with time constraints in a late night
+ daze, whomever may be stumbling upon this for
+ whatever reason I pray for strength in three.
+ Surmount this code in order to gain the ability
+ to graph parsed ns-2 trace files with python's
+ very own matplotlib.
+"""
 
 class simulation:
     """
@@ -14,18 +25,16 @@ class simulation:
         """
           turns a fileinto a sorted list of packets by time
         """
-        init_packets = PriorityQueue()
-
         # packets come in out of order, order them
-        # via priority queue
+        init_packets = []
         for line in the_file:
             p = packet()
             p.parse(line)
-            init_packets.put((p.time,p))
+            init_packets.append((p.time,p))
 
-        # PriorityQueue => ordered list
-        while not init_packets.empty():
-            self.packets.append(init_packets.get())
+        init_packets.sort(lambda x,y: int(10000 * (x[0] - y[0])))
+
+        self.packets = init_packets
 
     def get_tcp(self):
         """
@@ -35,7 +44,7 @@ class simulation:
 
     def get_total_droprate(self, src_adr=None):
         """
-         Packet loss / packets sent
+         Packet loss / time
         """
         start_time = None
         end_time = None
@@ -58,7 +67,7 @@ class simulation:
         end_time = last_packet[1].time
         total_time = end_time - start_time
 
-        return float(total_dropped_packets / total_packets)
+        return float(total_dropped_packets / total_time)
 
     def get_total_throughput(self, dest_adr=None):
         """
@@ -80,9 +89,32 @@ class simulation:
         end_time = last_packet[1].time
         total_time = end_time - start_time
 
-        print total_recieved
-
         return float(total_recieved / total_time)
+
+    def get_throughput(self, delta, dest_adr=None):
+        """
+          returns array of throughput values for given delta window
+        """
+        start_time = None
+        end_time = None
+        total_recieved = 0.0
+        output = []
+        for packet in self.packets:
+
+            if dest_adr is not None and packet[1].dest_adr == dest_adr and packet[1].dest_node == dest_adr:
+                if start_time is None:
+                    start_time = packet[1].time
+
+                total_recieved  += packet[1].size
+
+                last_packet = packet
+
+                if last_packet[1].time  - start_time >= delta:
+                    output.append((total_recieved,start_time))
+                    start_time = None
+                    total_recieved = 0.0
+
+        return output
 
 
     def get_total_latency(self, src_adr=None):
@@ -122,41 +154,95 @@ class simulation:
 
         return sum(latencies) / len(latencies)
 
-    def get_throuput(self, delta, src_adr=None):
-        pass
 
-    def get_latency(self):
-        pass
+    def get_latency(self, delta, src_adr=None):
+        """
+          returns the average latency within delta
+        """
+        pairs = []
+        p1 = None
+        p2 = None
+        sqnc_num = None
+        start_time = None
 
-    def get_drop_rate(self, delta, src_adr=None):
+        output = []
+
+        for packet in self.packets:
+
+            if p1 is None and packet[1].name == "tcp" and packet[1].src_node == src_adr:
+                if start_time is None:
+                    start_time = packet[1].time
+                p1 = packet
+                sqnc_num = p1[1].sqnc_num
+
+            if p1 is not None and packet[1].name == "ack" and packet[1].dest_node == 0 and packet[1].sqnc_num == sqnc_num:
+                p2 = packet
+
+            if p1 is not None and p2 is not None:
+                pair = (p1,p2)
+                pairs.append(pair)
+                p1 = None
+                p2 = None
+                sqnc_num = None
+
+            if start_time is not None and packet[1].time - start_time >= delta:
+                p1 = None
+                p2 = None
+                sqnc_num = None
+
+                latencies = []
+                for pair in pairs:
+                    diff = pair[1][0] - pair[0][0]
+                    latencies.append(diff)
+
+                if len(latencies) != 0:
+                    output.append((sum(latencies) / len(latencies), start_time))
+
+                start_time = None
+
+        return output
+
+
+    def get_droprate(self, delta, src_adr=None):
         """
             Returns the drop rate over all packet types
         """
         # count number of drop packets in each time / delta
-        bucket={}
+        start_time = None
+        output = []
+        drop_ctr = 0
         for packet in self.packets:
             if src_adr is not None and packet[1].src_adr == src_adr:
                 if packet[1].abr == 'd':
-                    t = int(math.floor(packet[1].time / delta))
-                    if t in bucket:
-                        bucket[t] = bucket[t] + 1
-                    else:
-                        bucket[t] = 1
+                    if start_time is None:
+                        start_time = packet[1].time
+                    drop_ctr += 1
 
-        # turn dict into array of (bucket,bucket_ctr)
-        output = []
-        for i in bucket.keys():
-            output.append((i,bucket[i]))
+                if start_time is not None and packet[1].time - start_time >= delta:
+                    output.append((drop_ctr, start_time))
+                    start_time = None
+                    drop_ctr = 0
 
-        # sort array
-        output.sort(lambda x,y: x[0] - y[0])
+        return output
 
-        # transformation for matplotlib
-        # array[(x,y)] => (array[x],array[y])
-        a = map(lambda x:x[0], output)
-        b = map(lambda x:x[1], output)
+def wobba_fobba(output):
+    """
+      wobba fobba:
+        sort an array of pairs by the second value
 
-        return (a,b)
+        then return a pair of arrays where a[0] is composed
+        of pair[0] and a[1] is pair[1]
+    """
+
+    # sort array
+    output.sort(lambda x,y: int(1000 * (x[1] - y[1])))
+
+    # transformation for matplotlib
+    # array[(x,y)] => (array[x],array[y])
+    a = map(lambda x:x[0], output)
+    b = map(lambda x:x[1], output)
+
+    return (a,b)
 
 class packet:
   """
@@ -245,23 +331,86 @@ class packet:
     return self.raw
 
 
+def make_der_grapher(folder):
+    data = {}
+    t1 = time()
+
+    for filename in os.listdir(folder):
+        log_file = open(folder + "/" + filename, 'r')
+        q = filename.split("-")
+        cbr = q[1]
+        agent_name = q[2].replace(".tr","")
+
+        s = simulation()
+        print "About to parse file " + folder + "/" + filename
+        
+        s.parse_file(log_file)
+
+        data[cbr] = s
+
+    t2 = time()
+
+    print "Parsing done composing graphs " + str(t2 - t1) + " seconds"
+
+    f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False)
+    axes = [ax1, ax2, ax3]
+    ax1.set_title("Droprate (lost / sent)")
+    ax2.set_title("Latency (seconds)")
+    ax3.set_title("Throughput (b/s)")
+    
+    for ax in axes:
+        box = ax.get_position()
+        ax.set_position([box.x0 - box.width * 0.05 ,box.y0, box.width * 0.9, box.height]) 
+
+    for key in data.keys():
+        print "Constructing graph for " + key
+        s = data[key]
+        cbr = key
+
+        drt = s.get_total_droprate(src_adr=0)
+        lat = s.get_total_latency(src_adr=0)
+        tpt = s.get_total_throughput(dest_adr=3)
+
+        dr = s.get_droprate(1.0, src_adr=0)
+        la = s.get_latency(0.1, src_adr=0)
+        tp = s.get_throughput(0.1, dest_adr=3)
+
+        dba, dbb = wobba_fobba(dr)
+        laa, lab = wobba_fobba(la)
+        tpa, tpb = wobba_fobba(tp)
+
+        ax1.plot(dbb, dba, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(drt,4)))
+        ax2.plot(lab, laa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(lat,4)))
+        ax3.plot(tpb, tpa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(tpt,2)))
+
+
+    for ax in [ax1, ax2, ax3]:
+        ax.legend(loc="upper left", fontsize='xx-small', bbox_to_anchor=(1.005, 1))
+
+    fig = plt.gcf()
+    fig.suptitle(agent_name)
+    fig.set_size_inches(fig.get_size_inches()[0] + 4, fig.get_size_inches()[1] + 3)
+    fig.set_dpi(90)
+
+    t3 = time()
+
+    print "Saving figure " + str(t3 - t2) + " seconds"
+
+    fig.savefig("./graphs/exp1-"+agent_name+".png")
+
+    t4 = time()
+
+    print "Done " + str(t4 - t1) + " elapsed seconds"
+
 if __name__ == "__main__":
     args = sys.argv
     if args[1] == '-t':
-        log_file = open(args[2], 'r')
-        s = simulation()
-        s.parse_file(log_file)
-
-        dr = s.get_total_droprate(src_adr=0)
-        la = s.get_total_latency(src_adr=0)
-        tp = s.get_total_throughput(dest_adr=0)
-
-        print "dropped per second"
-        print dr
-        print "latency seconds"
-        print la
-        print "throughput b/s"
-        print tp
+        make_der_grapher("./logs/exp1/newreno/")
+        make_der_grapher("./logs/exp1/reno/")
+        make_der_grapher("./logs/exp1/tahoe/")
+        make_der_grapher("./logs/exp1/vegas/")
+    elif args[1] == '-r':
+        make_der_grapher(args[2])
 
     else:
         for log_file in os.listdir("./logs"):
@@ -271,7 +420,7 @@ if __name__ == "__main__":
           s.parse_file(f)
           packets = s.get_tcp()
     
-          a,b = s.get_drop_rate(.1)
+          a,b = s.get_droprate(.1)
     
           plt.plot(a,b, linewidth=0.5)
     
