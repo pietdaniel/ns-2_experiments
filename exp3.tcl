@@ -6,7 +6,7 @@ proc experiment_one {agent discipline} {
 
   # set constants
   set ns [new Simulator]
-  set CBR_RATE 1mb
+  set CBR_RATE 8mb
   
   if {$agent == "tahoe"} {
     set tcp [new Agent/TCP]
