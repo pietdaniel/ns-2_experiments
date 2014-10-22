@@ -404,12 +404,12 @@ def graph_exp3(folder):
         log_file = open(folder + "/" + filename, 'r')
         filename = filename.replace(".tr","")
         q = filename.split("-")
-        cbr = q[1]
+        queue = q[1]
         agent_name = q[0]
         s = simulation()
         print "About to parse file " + folder + "/" + filename
         s.parse_file(log_file)
-        data[cbr] = s
+        data[queue] = s
 
     t2 = time()
 
@@ -428,7 +428,7 @@ def graph_exp3(folder):
     for key in data.keys():
         print "Constructing graph for " + key
         s = data[key]
-        cbr = key
+        queue = key
 
         drt = s.get_total_droprate(src_adr=0)
         lat = s.get_total_latency(src_adr=0)
@@ -442,9 +442,9 @@ def graph_exp3(folder):
         laa, lab = wobba_fobba(la)
         tpa, tpb = wobba_fobba(tp)
 
-        ax1.plot(dbb, dba, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(drt,4)))
-        ax2.plot(lab, laa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(lat,4)))
-        ax3.plot(tpb, tpa, linewidth=1.0, label=cbr + " CBR\nTotal:" + str(round(tpt,2)))
+        ax1.plot(dbb, dba, linewidth=1.0, label=queue + " Total:\n" + str(round(drt,4)))
+        ax2.plot(lab, laa, linewidth=1.0, label=queue + " Total:\n" + str(round(lat,4)))
+        ax3.plot(tpb, tpa, linewidth=1.0, label=queue + " Total:\n" + str(round(tpt,2)))
 
 
     for ax in [ax1, ax2, ax3]:
