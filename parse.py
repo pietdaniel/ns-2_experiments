@@ -12,17 +12,11 @@ from time import time
  Surmount this code in order to gain the ability
  to graph parsed ns-2 trace files with python's
  very own matplotlib.
-"""
 
-"""
- features to implement
-   run tcl script from parse args
-   change tcl script to vary init times
+ The general problem this script solves is
+ the graphing of ns-2 trace file data.
 
-   parse run2.tcl files
-
-   graph bi-directional tcp traffic with annotations
-
+ We used matplotlib to generate the graphs.
 """
 
 class simulation:
