@@ -58,6 +58,7 @@ Intro: 5% of your grade. Your intro should explain what it is that you are study
 
 Understanding congestion is important because protocols behave differently under varying levels of network activity. To build a reliable network these subtle behaviors within the various tcp agents must be understood and analysed.
 
+
 Fairness is akin in this regard, as the interaction between various tcp agents can cause detrimental effects to network stability if their nature is misunderstood or unknown. Investigating the behavior of protocols in simulators allows for suppositions to be crafted with supporting evidence which can be tested on the open networks. Network simulators allow for hypothesis to be forumlated over the observed controlled conditions. This is greatly beneficial as it aids in understanding the nuances of complicated behavior while being able to test its causal relations to the conditions of the network.
 
 
@@ -79,6 +80,21 @@ at low cbr all four agents behave very simliar to each other
  tahoe
   more consistent then newreno though cc is painful
 
+which TCP variants are able to get higher average throughput?
+  It depends on the CBR. At 8mb CBR out of a 10mb pipe vegas was able to maintain
+  a surprisingly high average at .72 Mb/s. A full .1 Mb/s over new reno. 
+  Tahoe, reno, and new reno behave simliarly with new reno beating the two previous incarnations in all brackets.
+  closing in a win over the 
+Which has the lowest average latency?
+  The data says tahoe but I doubt this.
+
+Which has the fewest drops?
+  Vegas had the fewest drops.
+
+Is there an overall "best" TCP variant in this experiment, or does the "best" variant vary depending on other circumstances? 
+  Vegas would be the winner if it didnt have such high latency and behave poorly when the netowork is at 90% usage. If low latency is a necessity and the network has high utlization new reno may be better choice.
+
+
 Results for Experiment 2: 30% of your grade. Thoroughly and carefully present the results from the two-TCP stream experiments. When there are two TCP streams, do they share bandwidth fairly, and if not, why not? If there are any unexpected or "shocking" findings, highlight them in your text and discuss what leads to these results.
 
 reno/reno
@@ -91,6 +107,15 @@ vegas/vegas
  at mid level range one agent dominates other surprisingly
 newreno/vegas
  new reno beats vegas ever so slightly
+
+are the different combinations of variants fair to each other?
+Are there combinations that are unfair, and if so, why is the combination unfair?
+
+ No, especaially at certain network utilization levels. In my expiriments vegas was unfair to itself on a network of 7mb CBR. Similiar competitive behavior was obsvered with reno reno at high network utilzation though there was no persistent dominator in this situation.
+ New reno beats out vegas across all CBR.
+
+To explain unfairness, you will need to think critically about how the protocols are implemented and why the different choices in different TCP variants can impact fairness. 
+
 
 Conclusion: 5% of your grade. Restate the significance of your study and highlight key results. Discuss the real-world significance of your results, and what the implications may be on deployed systems. Highlight any open questions that may motivate future studies.
 
